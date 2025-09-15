@@ -10,7 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -41,34 +40,44 @@ import androidx.compose.ui.unit.dp
 fun ShimmerPlaceholder(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(8.dp),
+    widthOfShadowBrush: Int = 500,
+    angleOfAxisY: Float = 270f,
+    durationMillis: Int = 1000,
     shimmerColors: List<Color> = listOf(
-        Color.LightGray.copy(alpha = 0.6f),
-        Color.LightGray.copy(alpha = 0.2f),
-        Color.LightGray.copy(alpha = 0.6f)
+        Color.White.copy(alpha = 0.3f),
+        Color.White.copy(alpha = 0.5f),
+        Color.White.copy(alpha = 1.0f),
+        Color.White.copy(alpha = 0.5f),
+        Color.White.copy(alpha = 0.3f),
     )
 ) {
 
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val translateX by transition.animateFloat(
+    val transition = rememberInfiniteTransition(label = "")
+
+    val translateAnimation = transition.animateFloat(
         initialValue = 0f,
-        targetValue = 1000f,
+        targetValue = (durationMillis + widthOfShadowBrush).toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
+            animation = tween(
+                durationMillis = durationMillis,
+                easing = LinearEasing,
+            ),
+            repeatMode = RepeatMode.Restart,
         ),
-        label = "shimmer_translate"
+        label = "Shimmer animation",
     )
 
-    val shimmerBrush = Brush.linearGradient(
+    val brush = Brush.linearGradient(
         colors = shimmerColors,
-        start = Offset(translateX, 0f),
-        end = Offset(translateX + 200f, 0f)
+        start = Offset(x = translateAnimation.value - widthOfShadowBrush, y = 0.0f),
+        end = Offset(x = translateAnimation.value, y = angleOfAxisY),
     )
+
 
     Box(
         modifier = modifier
             .clip(shape)
-            .background(shimmerBrush)
+            .background(brush)
     )
 
 }
