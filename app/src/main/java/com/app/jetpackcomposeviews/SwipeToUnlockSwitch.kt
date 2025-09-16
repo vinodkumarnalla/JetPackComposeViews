@@ -1,5 +1,5 @@
 package com.app.jetpackcomposeviews
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,8 +24,24 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+/**
+ * A composable Swipe-to-Unlock switch that allows the user to drag a thumb horizontally to unlock an action.
+ *
+ * This is similar to a "slide to unlock" pattern seen in mobile UIs.
+ *
+ * @param modifier Modifier to be applied to the SwipeToUnlockSwitch container.
+ * @param backgroundColor The background color of the switch.
+ * @param thumbColor The color of the draggable thumb.
+ * @param text The label displayed in the center when locked.
+ * @param textColor The color of the label text.
+ * @param icon The icon shown on the thumb when locked.
+ * @param unlockedIcon The icon shown on the thumb once unlocked.
+ * @param cornerRadius Corner radius of the switch container.
+ * @param onUnlock Callback triggered when the thumb is swiped beyond the unlock threshold.
+ */
 @Composable
 fun SwipeToUnlockSwitch(
     modifier: Modifier = Modifier,
@@ -41,18 +57,12 @@ fun SwipeToUnlockSwitch(
     var containerWidth by remember { mutableIntStateOf(0) }
     var containerHeight by remember { mutableIntStateOf(0) }
 
-    var thumbOffsetX by remember { mutableFloatStateOf(0f) }
     val unlocked = remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
-    val maxOffset = remember(containerWidth, containerHeight) {
-        (containerWidth - containerHeight).toFloat()
-    }
+    val maxOffset: Float = (containerWidth - containerHeight).toFloat()
 
-    val animatedOffsetX by animateFloatAsState(
-        targetValue = if (unlocked.value) maxOffset else thumbOffsetX,
-        animationSpec = tween(300),
-        label = "thumbOffset"
-    )
+    val thumbOffsetX = remember { Animatable(0f) }
 
     Box(
         modifier = modifier
@@ -67,21 +77,26 @@ fun SwipeToUnlockSwitch(
                     onHorizontalDrag = { change, dragAmount ->
                         change.consume()
                         if (!unlocked.value && containerHeight > 0) {
-                            thumbOffsetX = (thumbOffsetX + dragAmount).coerceIn(0f, maxOffset)
+                            val newOffset = (thumbOffsetX.value + dragAmount).coerceIn(0f, maxOffset)
+                            coroutineScope.launch {
+                                thumbOffsetX.snapTo(newOffset)
+                            }
                         }
                     },
                     onDragEnd = {
-                        if (thumbOffsetX >= maxOffset * 0.9f) {
-                            unlocked.value = true
-                            onUnlock()
-                        } else {
-                            thumbOffsetX = 0f
+                        coroutineScope.launch {
+                            if (thumbOffsetX.value >= maxOffset * 0.9f) {
+                                unlocked.value = true
+                                thumbOffsetX.animateTo(maxOffset, tween(300))
+                                onUnlock()
+                            } else {
+                                thumbOffsetX.animateTo(0f, tween(300))
+                            }
                         }
                     }
                 )
             }
     ) {
-        // Text when locked
         if (!unlocked.value) {
             Text(
                 text = text,
@@ -90,10 +105,9 @@ fun SwipeToUnlockSwitch(
             )
         }
 
-        // Thumb (lock icon)
         Box(
             modifier = Modifier
-                .offset { IntOffset(animatedOffsetX.roundToInt(), 0) }
+                .offset { IntOffset(thumbOffsetX.value.roundToInt(), 0) }
                 .size(with(LocalDensity.current) { containerHeight.toDp() })
                 .clip(CircleShape)
                 .background(thumbColor)
@@ -110,6 +124,7 @@ fun SwipeToUnlockSwitch(
         }
     }
 }
+
 
 
 @Preview
